@@ -35,6 +35,12 @@ class UserOut(ORMBaseModel):
     created_at: datetime
 
 
+class MessageSender(ORMBaseModel):
+    id: int
+    username: str
+    avatar_url: str | None = None
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -48,3 +54,10 @@ class MessageOut(ORMBaseModel):
     file_url: str | None = None
     file_type: str | None = None
     created_at: datetime
+    sender: MessageSender
+
+
+class MessageCreate(BaseModel):
+    content: str | None = Field(default=None, max_length=4000)
+    file_url: str | None = None
+    file_type: str | None = Field(default=None, max_length=20)

@@ -196,6 +196,11 @@ button {
   gap: 1.5rem;
 }
 
+.chat-subtitle {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.86);
+}
+
 .chat-header {
   display: flex;
   justify-content: space-between;
@@ -208,6 +213,19 @@ button {
 .chat-panel {
   border-radius: 28px;
   padding: 2rem;
+}
+
+.chat-panel.live {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 1rem;
+  min-height: 65vh;
+}
+
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .chat-user-card {
@@ -224,8 +242,94 @@ button {
   display: block;
 }
 
+.chat-user-card.compact {
+  margin-top: 0;
+}
+
 .chat-user-card p {
   margin: 0.2rem 0 0;
+}
+
+.message-list {
+  overflow-y: auto;
+  display: grid;
+  gap: 0.9rem;
+  padding-right: 0.25rem;
+}
+
+.message-row {
+  display: flex;
+}
+
+.message-row.own {
+  justify-content: flex-end;
+}
+
+.message-bubble {
+  max-width: min(75ch, 78%);
+  border-radius: 22px;
+  padding: 1rem 1.1rem;
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.message-bubble.own {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.94), rgba(251, 146, 60, 0.94));
+  color: #111827;
+}
+
+.message-bubble.own .message-meta,
+.message-bubble.own .message-content,
+.message-bubble.own .message-file {
+  color: #111827;
+}
+
+.message-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+  color: #cbd5e1;
+  font-size: 0.9rem;
+}
+
+.message-content {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.message-file {
+  display: inline-block;
+  margin-top: 0.8rem;
+  font-weight: 600;
+}
+
+.chat-empty {
+  display: grid;
+  place-items: center;
+  min-height: 18rem;
+  border-radius: 24px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+}
+
+.chat-input-bar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.8rem;
+}
+
+.chat-input-bar input {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  padding: 1rem 1.05rem;
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.68);
+  outline: none;
+}
+
+.chat-input-bar input:focus {
+  border-color: rgba(249, 181, 114, 0.85);
 }
 
 .status-dot {
@@ -251,5 +355,19 @@ button {
   .chat-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .chat-header-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .chat-input-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .message-bubble {
+    max-width: 100%;
   }
 }
