@@ -1,0 +1,255 @@
+@import "tailwindcss";
+
+:root {
+  color: #f4efe8;
+  background:
+    radial-gradient(circle at top, rgba(227, 146, 87, 0.18), transparent 32%),
+    linear-gradient(135deg, #111827 0%, #1f2937 52%, #0f172a 100%);
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  color: #f8fafc;
+}
+
+a {
+  color: #f9b572;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #ffd2a8;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.auth-layout,
+.chat-shell {
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.auth-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 2rem;
+  align-items: center;
+}
+
+.auth-hero,
+.auth-card,
+.chat-panel,
+.chat-header {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.62);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.28);
+}
+
+.auth-hero {
+  border-radius: 32px;
+  padding: 3rem;
+}
+
+.auth-hero h1,
+.chat-header h1 {
+  margin: 0.25rem 0 1rem;
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  line-height: 0.95;
+}
+
+.hero-copy,
+.chat-copy,
+.auth-card-header p,
+.chat-user-card p {
+  color: rgba(226, 232, 240, 0.86);
+}
+
+.eyebrow {
+  margin: 0;
+  color: #f9b572;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.auth-card {
+  border-radius: 28px;
+  padding: 2rem;
+}
+
+.auth-card-header h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.8rem;
+}
+
+.auth-card-header p {
+  margin: 0 0 1.5rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.auth-form span {
+  font-size: 0.95rem;
+  color: #cbd5e1;
+}
+
+.auth-form input {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  padding: 0.95rem 1rem;
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.68);
+  outline: none;
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+
+.auth-form input:focus {
+  border-color: rgba(249, 181, 114, 0.85);
+  transform: translateY(-1px);
+}
+
+.primary-button,
+.secondary-button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.9rem 1.2rem;
+  transition:
+    transform 160ms ease,
+    opacity 160ms ease,
+    background 160ms ease;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, #f97316, #fb923c);
+  color: #111827;
+  font-weight: 700;
+}
+
+.secondary-button {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+}
+
+.primary-button:hover,
+.secondary-button:hover {
+  transform: translateY(-1px);
+}
+
+.primary-button:disabled,
+.secondary-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.form-error {
+  margin: 0;
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.45);
+}
+
+.form-success {
+  margin: 0;
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  color: #d1fae5;
+  background: rgba(6, 78, 59, 0.42);
+}
+
+.auth-footer {
+  margin-top: 1.4rem;
+  color: #cbd5e1;
+}
+
+.chat-shell {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border-radius: 28px;
+  padding: 1.5rem 1.75rem;
+}
+
+.chat-panel {
+  border-radius: 28px;
+  padding: 2rem;
+}
+
+.chat-user-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  margin-top: 1.5rem;
+  border-radius: 20px;
+  padding: 1rem 1.1rem;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.chat-user-card strong {
+  display: block;
+}
+
+.chat-user-card p {
+  margin: 0.2rem 0 0;
+}
+
+.status-dot {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  background: #34d399;
+  box-shadow: 0 0 0 0.35rem rgba(52, 211, 153, 0.18);
+}
+
+@media (max-width: 900px) {
+  .auth-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-hero,
+  .auth-card,
+  .chat-header,
+  .chat-panel {
+    padding: 1.5rem;
+  }
+
+  .chat-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
