@@ -1,4 +1,4 @@
-# Baithak
+# Baithak v1
 
 Baithak is a full-stack group messaging app built with FastAPI, React, and PostgreSQL.
 
