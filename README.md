@@ -198,6 +198,9 @@ Notes:
 
 Import the repo into Vercel and set the project root to `frontend/`.
 
+Keep the included `frontend/vercel.json` in place so direct visits and refreshes on routes like `/login`,
+`/chat`, and `/admin` rewrite back to `index.html` instead of returning a Vercel 404.
+
 Set this environment variable in Vercel:
 
 ```env
