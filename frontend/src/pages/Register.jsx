@@ -30,7 +30,11 @@ export default function Register() {
       await api.post("/register", formData);
       navigate("/login", {
         replace: true,
-        state: { registered: true, email: formData.email.trim().toLowerCase() },
+        state: {
+          registered: true,
+          pendingApproval: true,
+          email: formData.email.trim().toLowerCase(),
+        },
       });
     } catch (requestError) {
       setError(
@@ -45,7 +49,7 @@ export default function Register() {
   return (
     <AuthCard
       title="Create account"
-      subtitle="Register a new user against the FastAPI auth backend."
+      subtitle="Register first, then wait for approval before entering Baithak."
       form={
         <form className="auth-form" onSubmit={handleSubmit}>
           <label>
@@ -56,6 +60,7 @@ export default function Register() {
               placeholder="Choose a username"
               value={formData.username}
               onChange={handleChange}
+              autoComplete="username"
               minLength={3}
               required
             />
@@ -69,6 +74,7 @@ export default function Register() {
               placeholder="you@example.com"
               value={formData.email}
               onChange={handleChange}
+              autoComplete="email"
               required
             />
           </label>
@@ -81,12 +87,16 @@ export default function Register() {
               placeholder="Create a password"
               value={formData.password}
               onChange={handleChange}
+              autoComplete="new-password"
               minLength={6}
               required
             />
           </label>
 
           {error ? <p className="form-error">{error}</p> : null}
+          <p className="form-success muted">
+            New accounts stay pending until an admin approves them.
+          </p>
 
           <button type="submit" className="primary-button" disabled={isSubmitting}>
             {isSubmitting ? "Creating account..." : "Register"}

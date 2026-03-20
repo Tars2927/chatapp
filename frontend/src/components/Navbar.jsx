@@ -1,15 +1,31 @@
-export default function Navbar({ user, connectionLabel, onLogout }) {
+export default function Navbar({ user, connectionLabel, onlineUsers, onLogout }) {
   return (
     <header className="chat-header">
       <div>
-        <p className="eyebrow">Live Chat</p>
-        <h1>Friend Group Room</h1>
+        <div className="brand-lockup">
+          <img className="brand-logo" src="/baithak-logo.svg" alt="Baithak logo" />
+          <div>
+            <p className="eyebrow">Baithak</p>
+            <h1>Baithak Room</h1>
+          </div>
+        </div>
         <p className="chat-subtitle">
           Signed in as {user?.username || "user"} · {connectionLabel}
+        </p>
+        <p className="chat-online-summary">
+          {onlineUsers.length
+            ? `${onlineUsers.length} online: ${onlineUsers.map((entry) => entry.username).join(", ")}`
+            : "No one else is online yet."}
         </p>
       </div>
 
       <div className="chat-header-actions">
+        {user?.is_admin ? (
+          <a className="secondary-button" href="/admin">
+            Admin
+          </a>
+        ) : null}
+
         <div className="chat-user-card compact">
           <span className="status-dot" />
           <div>

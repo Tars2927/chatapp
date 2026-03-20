@@ -2,11 +2,15 @@ export default function AuthCard({ title, subtitle, form, footer }) {
   return (
     <div className="auth-layout">
       <section className="auth-hero">
-        <p className="eyebrow">Day 2</p>
-        <h1>ChatApp</h1>
+        <div className="brand-lockup hero">
+          <img className="brand-logo hero" src="/baithak-logo.svg" alt="Baithak logo" />
+          <div>
+            <h1>Baithak</h1>
+          </div>
+        </div>
         <p className="hero-copy">
           A focused auth shell for the messaging app. Register, sign in, and
-          move straight into the protected chat flow.
+          move straight into the protected Baithak flow.
         </p>
       </section>
 

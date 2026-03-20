@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, WebSocketException, status
 from sqlalchemy.orm import joinedload
-from fastapi import WebSocketException
 
 from auth import decode_access_token
 from database import SessionLocal
 from models import Message, User
 from schemas import MessageCreate, MessageOut
+from security import enforce_rate_limit
 
 
 router = APIRouter(tags=["ws"])
@@ -18,10 +19,12 @@ router = APIRouter(tags=["ws"])
 class ConnectionManager:
     def __init__(self) -> None:
         self.active_connections: dict[int, set[WebSocket]] = defaultdict(set)
+        self.connected_users: dict[int, str] = {}
 
-    async def connect(self, user_id: int, websocket: WebSocket) -> None:
+    async def connect(self, user_id: int, username: str, websocket: WebSocket) -> None:
         await websocket.accept()
         self.active_connections[user_id].add(websocket)
+        self.connected_users[user_id] = username
 
     def disconnect(self, user_id: int, websocket: WebSocket) -> None:
         connections = self.active_connections.get(user_id)
@@ -31,11 +34,18 @@ class ConnectionManager:
         connections.discard(websocket)
         if not connections:
             self.active_connections.pop(user_id, None)
+            self.connected_users.pop(user_id, None)
+
+    def online_users_payload(self) -> list[dict]:
+        return [
+            {"user_id": user_id, "username": username}
+            for user_id, username in sorted(self.connected_users.items(), key=lambda item: item[1].lower())
+        ]
 
     async def broadcast(self, payload: dict) -> None:
         stale_connections: list[tuple[int, WebSocket]] = []
 
-        for user_id, connections in self.active_connections.items():
+        for user_id, connections in list(self.active_connections.items()):
             for connection in list(connections):
                 try:
                     await connection.send_json(payload)
@@ -125,16 +135,88 @@ def authenticate_websocket(user_id: int, token: str | None) -> User:
                 code=status.WS_1008_POLICY_VIOLATION,
                 reason="User not found.",
             )
+        if not user.is_approved:
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="Your account is pending approval.",
+            )
         return user
+    finally:
+        db.close()
+
+
+def update_existing_message(user_id: int, payload: dict) -> dict:
+    db = SessionLocal()
+
+    try:
+        message_id = int(payload.get("message_id", 0))
+        message = db.query(Message).filter(Message.id == message_id).first()
+        if message is None or message.is_deleted:
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="Message not found.",
+            )
+
+        if message.sender_id != user_id:
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="You can only edit your own messages.",
+            )
+
+        next_content = (payload.get("content") or "").strip()
+        if not next_content:
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="Edited message content cannot be empty.",
+            )
+
+        message.content = next_content
+        message.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        db.refresh(message)
+
+        stored_message = (
+            db.query(Message)
+            .options(joinedload(Message.sender))
+            .filter(Message.id == message.id)
+            .first()
+        )
+        return serialize_message(stored_message)
+    finally:
+        db.close()
+
+
+def delete_existing_message(user_id: int, payload: dict) -> int:
+    db = SessionLocal()
+
+    try:
+        message_id = int(payload.get("message_id", 0))
+        message = db.query(Message).filter(Message.id == message_id).first()
+        if message is None or message.is_deleted:
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="Message not found.",
+            )
+
+        if message.sender_id != user_id:
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION,
+                reason="You can only delete your own messages.",
+            )
+
+        message.is_deleted = True
+        message.updated_at = datetime.now(timezone.utc)
+        db.commit()
+        return message.id
     finally:
         db.close()
 
 
 @router.websocket("/ws/{user_id}")
 async def websocket_chat(websocket: WebSocket, user_id: int):
-    token = websocket.query_params.get("token")
-    authenticate_websocket(user_id, token)
-    await manager.connect(user_id, websocket)
+    user = authenticate_websocket(user_id, websocket.query_params.get("token"))
+    await manager.connect(user_id, user.username, websocket)
+    await manager.broadcast({"type": "presence", "online_users": manager.online_users_payload()})
 
     try:
         await websocket.send_json(
@@ -146,10 +228,35 @@ async def websocket_chat(websocket: WebSocket, user_id: int):
 
         while True:
             payload = await websocket.receive_json()
+            event_type = payload.get("type", "message")
+            enforce_rate_limit(websocket, scope="ws_events", limit=120, window_seconds=60, subject=str(user.id))
+
+            if event_type == "typing":
+                await manager.broadcast(
+                    {
+                        "type": "typing",
+                        "user_id": user.id,
+                        "username": user.username,
+                    }
+                )
+                continue
+
+            if event_type == "edit_message":
+                message_payload = update_existing_message(user.id, payload)
+                await manager.broadcast({"type": "message_updated", "message": message_payload})
+                continue
+
+            if event_type == "delete_message":
+                message_id = delete_existing_message(user.id, payload)
+                await manager.broadcast({"type": "message_deleted", "message_id": message_id})
+                continue
+
             message_payload = persist_message(user_id, payload)
             await manager.broadcast({"type": "message", "message": message_payload})
     except WebSocketDisconnect:
         manager.disconnect(user_id, websocket)
+        await manager.broadcast({"type": "presence", "online_users": manager.online_users_payload()})
     except WebSocketException:
         manager.disconnect(user_id, websocket)
+        await manager.broadcast({"type": "presence", "online_users": manager.online_users_payload()})
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)

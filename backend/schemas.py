@@ -32,6 +32,16 @@ class UserOut(ORMBaseModel):
     username: str
     email: str
     avatar_url: str | None = None
+    is_approved: bool
+    is_admin: bool
+    created_at: datetime
+
+
+class PendingUserOut(ORMBaseModel):
+    id: int
+    username: str
+    email: str
+    is_approved: bool
     created_at: datetime
 
 
@@ -54,6 +64,8 @@ class MessageOut(ORMBaseModel):
     file_url: str | None = None
     file_type: str | None = None
     created_at: datetime
+    updated_at: datetime | None = None
+    is_deleted: bool = False
     sender: MessageSender
 
 
@@ -61,3 +73,7 @@ class MessageCreate(BaseModel):
     content: str | None = Field(default=None, max_length=4000)
     file_url: str | None = None
     file_type: str | None = Field(default=None, max_length=20)
+
+
+class MessageUpdate(BaseModel):
+    content: str = Field(..., min_length=1, max_length=4000)
