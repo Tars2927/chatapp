@@ -304,3 +304,5 @@ Then deploy. The frontend already derives both HTTP and WebSocket connections fr
 - Hosted deployments still support the existing Render + Vercel split.
 - The Windows packaging script expects `backend\venv\Scripts\python.exe` to exist.
 
+- ## MADE BY TARS!
+
