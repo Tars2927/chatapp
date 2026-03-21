@@ -1,10 +1,14 @@
 import os
+import shutil
 from datetime import datetime, timezone
+from pathlib import Path
+from uuid import uuid4
 
 from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
 
+from app_paths import get_uploads_dir, is_desktop_mode
 from auth import get_current_user
 from database import get_db
 from models import Message, User
@@ -46,6 +50,25 @@ def configure_cloudinary():
     )
 
     return cloudinary_uploader
+
+
+def save_local_upload(file: UploadFile) -> dict:
+    uploads_dir = get_uploads_dir()
+    extension = Path(file.filename or "").suffix.lower()
+    filename = f"{uuid4().hex}{extension}"
+    destination = uploads_dir / filename
+
+    with destination.open("wb") as output:
+        shutil.copyfileobj(file.file, output)
+
+    content_type = file.content_type or ""
+    file_type = "image" if content_type.startswith("image/") else "file"
+
+    return {
+        "file_url": f"/uploads/{filename}",
+        "file_type": file_type,
+        "original_filename": file.filename,
+    }
 
 
 @router.get("/messages", response_model=list[MessageOut])
@@ -134,9 +157,11 @@ def upload_attachment(
     enforce_rate_limit(request, scope="upload", limit=20, window_seconds=600)
     validate_upload(file)
 
-    cloudinary_uploader = configure_cloudinary()
-
     try:
+        if is_desktop_mode():
+            return save_local_upload(file)
+
+        cloudinary_uploader = configure_cloudinary()
         result = cloudinary_uploader.upload(
             file.file,
             resource_type="auto",
@@ -144,26 +169,28 @@ def upload_attachment(
             use_filename=True,
             unique_filename=True,
         )
-    except Exception as exc:  # pragma: no cover
+
+        secure_url = result.get("secure_url")
+        if not secure_url:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Upload did not return a file URL.",
+            )
+
+        content_type = file.content_type or ""
+        file_type = "image" if content_type.startswith("image/") else "file"
+
+        return {
+            "file_url": secure_url,
+            "file_type": file_type,
+            "original_filename": file.filename,
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Upload failed: {exc}",
         ) from exc
     finally:
         file.file.close()
-
-    secure_url = result.get("secure_url")
-    if not secure_url:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Upload did not return a file URL.",
-        )
-
-    content_type = file.content_type or ""
-    file_type = "image" if content_type.startswith("image/") else "file"
-
-    return {
-        "file_url": secure_url,
-        "file_type": file_type,
-        "original_filename": file.filename,
-    }

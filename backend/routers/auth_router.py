@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from app_paths import is_desktop_mode
 from auth import create_access_token, get_password_hash, verify_password
 from database import get_db
 from models import User
@@ -31,11 +32,14 @@ def register_user(payload: UserCreate, request: Request, db: Session = Depends(g
             detail=f"A user with that {conflict_field} already exists.",
         )
 
+    existing_user_count = db.query(User).count()
+    desktop_mode = is_desktop_mode()
     user = User(
         username=normalized_username,
         email=normalized_email,
         hashed_password=get_password_hash(payload.password),
-        is_approved=False,
+        is_approved=True if desktop_mode else False,
+        is_admin=True if desktop_mode and existing_user_count == 0 else False,
     )
     db.add(user)
     db.commit()

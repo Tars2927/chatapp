@@ -6,7 +6,6 @@ from pathlib import Path
 
 from fastapi import HTTPException, Request, UploadFile, WebSocket, status
 
-
 APP_ENV = os.getenv("APP_ENV", "development").strip().lower()
 IS_PRODUCTION = APP_ENV == "production"
 TRUST_PROXY = os.getenv("TRUST_PROXY", "false").strip().lower() == "true"
@@ -32,26 +31,22 @@ UPLOAD_ALLOWED_MIME_PREFIXES = tuple(
 _rate_limit_lock = threading.Lock()
 _rate_limit_buckets = defaultdict(deque)
 
-
 def parse_csv_env(name: str, default: str = "") -> list[str]:
     raw = os.getenv(name, default)
     return [item.strip() for item in raw.split(",") if item.strip()]
-
 
 def get_allowed_origins() -> list[str]:
     if IS_PRODUCTION:
         return parse_csv_env("CORS_ALLOWED_ORIGINS")
     return parse_csv_env(
         "CORS_ALLOWED_ORIGINS",
-        "http://127.0.0.1:5173,http://localhost:5173",
+        "http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:8000,http://localhost:8000",
     )
-
 
 def get_allowed_hosts() -> list[str]:
     if IS_PRODUCTION:
         return parse_csv_env("ALLOWED_HOSTS")
     return parse_csv_env("ALLOWED_HOSTS", "127.0.0.1,localhost")
-
 
 def validate_security_config(secret_key: str) -> None:
     if not secret_key or secret_key.startswith("replace-with"):
@@ -66,7 +61,6 @@ def validate_security_config(secret_key: str) -> None:
         if not get_allowed_hosts():
             raise RuntimeError("ALLOWED_HOSTS must be set in production.")
 
-
 def get_client_ip(connection: Request | WebSocket) -> str:
     if TRUST_PROXY:
         forwarded = connection.headers.get("x-forwarded-for", "")
@@ -75,7 +69,6 @@ def get_client_ip(connection: Request | WebSocket) -> str:
 
     client = connection.client
     return client.host if client else "unknown"
-
 
 def enforce_rate_limit(
     connection: Request | WebSocket,
@@ -101,7 +94,6 @@ def enforce_rate_limit(
             )
 
         bucket.append(now)
-
 
 def validate_upload(file: UploadFile) -> None:
     if not file.filename:

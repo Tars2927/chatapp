@@ -1,4 +1,5 @@
 import os
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
@@ -8,6 +9,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
+from app_paths import get_data_dir
 from database import get_db
 from models import User
 from security import validate_security_config
@@ -15,12 +17,26 @@ from security import validate_security_config
 
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY", "")
+
+def resolve_secret_key() -> str:
+    configured = os.getenv("SECRET_KEY", "").strip()
+    if configured:
+        return configured
+
+    secret_path = get_data_dir() / "secret_key.txt"
+    if secret_path.exists():
+        return secret_path.read_text(encoding="utf-8").strip()
+
+    generated = secrets.token_urlsafe(48)
+    secret_path.write_text(generated, encoding="utf-8")
+    return generated
+
+
+SECRET_KEY = resolve_secret_key()
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 validate_security_config(SECRET_KEY)
 
-# Use PBKDF2 here to avoid the known bcrypt/passlib compatibility issue in this environment.
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 bearer_scheme = HTTPBearer(auto_error=False)
 

@@ -16,6 +16,10 @@ function resolveApiUrl() {
     return configuredUrl.replace(/\/+$/, "");
   }
 
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+
   return "http://127.0.0.1:8000";
 }
 
@@ -345,9 +349,13 @@ export default function Chat() {
         },
       });
 
+      const fileUrl = response.data.file_url?.startsWith("http")
+        ? response.data.file_url
+        : `${resolveApiUrl()}${response.data.file_url}`;
+
       socketRef.current.send(
         JSON.stringify({
-          file_url: response.data.file_url,
+          file_url: fileUrl,
           file_type: response.data.file_type,
           content: "",
         }),

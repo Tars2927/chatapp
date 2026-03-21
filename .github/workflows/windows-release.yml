@@ -1,0 +1,83 @@
+name: Build Windows App
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Create backend virtual environment
+        shell: pwsh
+        run: |
+          python -m venv backend\venv
+
+      - name: Install backend dependencies
+        shell: pwsh
+        run: |
+          .\backend\venv\Scripts\python.exe -m pip install --upgrade pip
+          .\backend\venv\Scripts\python.exe -m pip install -r backend\requirements-desktop.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        shell: pwsh
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        shell: pwsh
+        run: npm run build
+
+      - name: Build Windows executable
+        shell: pwsh
+        run: .\build-windows.ps1
+
+      - name: Package release zip
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force packaged | Out-Null
+          Copy-Item .\release\Baithak.exe .\packaged\Baithak.exe
+          Compress-Archive -Path .\packaged\Baithak.exe -DestinationPath .\packaged\Baithak-windows.zip -Force
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Baithak-windows
+          path: |
+            release/Baithak.exe
+            packaged/Baithak-windows.zip
+
+      - name: Publish GitHub release asset
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          artifacts: packaged/Baithak-windows.zip
+          body: Latest Windows desktop build for Baithak.
+          name: Latest Windows Build
+          prerelease: false
+          removeArtifacts: true
+          replacesArtifacts: true
+          tag: windows-latest

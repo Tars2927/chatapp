@@ -9,6 +9,7 @@ The project currently includes:
 - a React frontend with register/login pages
 - protected frontend routing for the chat area
 - a realtime group chat experience with admin approval and uploads
+- a Windows desktop packaging path that can produce a downloadable `.exe`
 
 ## Tech Stack
 
@@ -16,7 +17,8 @@ The project currently includes:
 
 - FastAPI
 - SQLAlchemy
-- PostgreSQL (Neon)
+- PostgreSQL for hosted deployments
+- SQLite fallback for local desktop builds
 - `python-jose` for JWT handling
 - `passlib` for password hashing
 
@@ -33,11 +35,14 @@ The project currently includes:
 ```text
 chatapp/
 ├── backend/
+│   ├── app_paths.py
 │   ├── auth.py
 │   ├── database.py
+│   ├── desktop_launcher.py
 │   ├── main.py
 │   ├── models.py
 │   ├── requirements.txt
+│   ├── requirements-desktop.txt
 │   ├── schemas.py
 │   ├── .env.example
 │   └── routers/
@@ -58,13 +63,15 @@ chatapp/
 │   ├── index.html
 │   ├── package.json
 │   └── vite.config.js
+├── build-windows.ps1
 └── plan.md
 ```
 
 ## Features Implemented
 
 - User registration
-- Admin approval for new accounts
+- Admin approval for new accounts in hosted mode
+- Automatic first-user admin and local approval in desktop mode
 - User login
 - Password hashing
 - JWT token generation
@@ -75,6 +82,7 @@ chatapp/
 - File uploads
 - Edit and delete for a user's own messages
 - Emoji support in the composer
+- Frontend served directly by FastAPI for desktop packaging
 
 ## Backend Setup
 
@@ -102,6 +110,8 @@ SECRET_KEY=replace-with-a-long-random-secret
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
 ```
+
+If `DATABASE_URL` is omitted for local desktop use, the backend now falls back to a local SQLite database in `desktop_data/baithak.db` during development, or `%APPDATA%\Baithak\baithak.db` in the packaged `.exe`.
 
 ### 4. Start the backend
 
@@ -132,11 +142,13 @@ npm install
 
 ### 2. Create your local `.env`
 
-Use `frontend/.env.example` as a reference and create `frontend/.env`:
+Use `frontend/.env.example` as a reference and create `frontend/.env` only if you want the frontend to call a different backend:
 
 ```env
 VITE_API_URL=http://127.0.0.1:8000
 ```
+
+If `VITE_API_URL` is not set, the frontend now uses the current browser origin. That makes the same production build work when served by the packaged FastAPI app.
 
 ### 3. Start the frontend
 
@@ -150,14 +162,61 @@ Frontend will run on the Vite dev server, usually:
 http://127.0.0.1:5173
 ```
 
+## Build a Windows `.exe`
+
+You can now package Baithak as a single Windows executable.
+
+GitHub Actions will also build and publish a downloadable Windows release asset on pushes to main, so users can download it from the repo's Releases page once the workflow finishes.
+
+### What the desktop build does
+
+- bundles the built React frontend into the executable
+- starts the FastAPI server locally
+- opens the app in the default browser
+- stores app data under `%APPDATA%\Baithak`
+- uses a local SQLite database automatically when `DATABASE_URL` is not provided
+- stores uploaded files locally instead of requiring Cloudinary
+
+### Build steps
+
+1. Build the frontend:
+
+```powershell
+cd frontend
+npm run build
+```
+
+2. Run the Windows packaging script from the repo root:
+
+```powershell
+.\build-windows.ps1
+```
+
+3. The packaged app will be created at:
+
+```text
+release\Baithak.exe
+```
+
+### Run the packaged app
+
+Double-click `Baithak.exe`. It will start a local server on `127.0.0.1`, pick an open port, and open the chat app in your default browser.
+
+### Desktop mode behavior
+
+- the first registered user becomes admin automatically
+- new desktop-mode registrations are approved automatically
+- uploads are saved locally and served from the app itself
+- app data persists across launches
+
 ## Free Deployment
 
-Baithak's current free deployment path is:
+Baithak's current free deployment path is still:
 
 - frontend on Vercel
 - backend on Render free web service
 
-This split is recommended because the frontend is static and Vercel-friendly, while the backend needs a long-running FastAPI server with WebSocket support.
+This split is recommended for hosted web deployment, while the `.exe` path is recommended for local Windows usage.
 
 ### Deploy the Backend on Render
 
@@ -198,8 +257,7 @@ Notes:
 
 Import the repo into Vercel and set the project root to `frontend/`.
 
-Keep the included `frontend/vercel.json` in place so direct visits and refreshes on routes like `/login`,
-`/chat`, and `/admin` rewrite back to `index.html` instead of returning a Vercel 404.
+Keep the included `frontend/vercel.json` in place so direct visits and refreshes on routes like `/login`, `/chat`, and `/admin` rewrite back to `index.html` instead of returning a Vercel 404.
 
 Set this environment variable in Vercel:
 
@@ -240,11 +298,9 @@ Then deploy. The frontend already derives both HTTP and WebSocket connections fr
 
 - `WS /ws/{user_id}`
 
-## Current Development Status
-
-Baithak now includes moderated access, realtime messaging, uploads, editing, deleting, and emoji support.
-
 ## Notes
 
-- The frontend currently builds successfully on this repo.
-- Vite may warn if your local Node version is older than its preferred engine range.
+- The frontend build currently succeeds on this repo.
+- Hosted deployments still support the existing Render + Vercel split.
+- The Windows packaging script expects `backend\venv\Scripts\python.exe` to exist.
+

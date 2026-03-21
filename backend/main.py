@@ -1,12 +1,16 @@
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from app_paths import get_frontend_dist_dir, get_uploads_dir
 from auth import SECRET_KEY
 from database import Base, engine
 from routers.admin_router import router as admin_router
@@ -56,6 +60,26 @@ async def lifespan(_: FastAPI):
     yield
 
 
+def resolve_frontend_asset(path: str) -> Path | None:
+    frontend_dist = get_frontend_dist_dir()
+    if not frontend_dist.exists():
+        return None
+
+    cleaned = path.strip("/")
+    target = (frontend_dist / cleaned).resolve() if cleaned else (frontend_dist / "index.html").resolve()
+
+    try:
+        target.relative_to(frontend_dist.resolve())
+    except ValueError:
+        return None
+
+    if target.is_file():
+        return target
+
+    index_file = frontend_dist / "index.html"
+    return index_file if index_file.exists() else None
+
+
 app = FastAPI(title="Baithak Backend", lifespan=lifespan)
 allowed_hosts = get_allowed_hosts()
 allowed_origins = get_allowed_origins()
@@ -75,7 +99,20 @@ app.include_router(admin_router)
 app.include_router(messages_router)
 app.include_router(ws_router)
 
+uploads_dir = get_uploads_dir()
+if uploads_dir.exists():
+    app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
-@app.get("/")
-def read_root():
+
+@app.get("/health")
+def health_check():
+    return {"message": "Baithak Backend is running."}
+
+
+@app.get("/{full_path:path}")
+def serve_frontend(full_path: str):
+    asset = resolve_frontend_asset(full_path)
+    if asset is not None:
+        return FileResponse(asset)
+
     return {"message": "Baithak Backend is running."}

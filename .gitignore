@@ -8,3 +8,7 @@ backend/routers/__pycache__/
 *.pyc
 *.log
 .DS_Store
+release/
+backend/build/
+backend/dist/
+backend/*.spec
