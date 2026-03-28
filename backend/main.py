@@ -38,12 +38,21 @@ def ensure_user_access_columns() -> None:
     admin_email = os.getenv("ADMIN_EMAIL", "").strip().lower()
 
     with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT"))
         connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_approved BOOLEAN"))
         connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN"))
+        connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications_enabled BOOLEAN"))
+        connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS digest_min_unread_count INTEGER"))
+        connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_read_message_id INTEGER"))
+        connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ"))
+        connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_digest_sent_at TIMESTAMPTZ"))
         connection.execute(text("ALTER TABLE messages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ"))
         connection.execute(text("ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN"))
         connection.execute(text("UPDATE users SET is_approved = TRUE WHERE is_approved IS NULL"))
         connection.execute(text("UPDATE users SET is_admin = FALSE WHERE is_admin IS NULL"))
+        connection.execute(text("UPDATE users SET email_notifications_enabled = TRUE WHERE email_notifications_enabled IS NULL"))
+        connection.execute(text("UPDATE users SET digest_min_unread_count = 1 WHERE digest_min_unread_count IS NULL OR digest_min_unread_count < 1"))
+        connection.execute(text("UPDATE users SET last_active_at = COALESCE(last_active_at, created_at, CURRENT_TIMESTAMP)"))
         connection.execute(text("UPDATE messages SET is_deleted = FALSE WHERE is_deleted IS NULL"))
         if admin_email:
             connection.execute(

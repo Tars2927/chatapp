@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import UserAvatar from "./UserAvatar";
+
 function formatTimestamp(value) {
   const date = new Date(value);
 
@@ -33,6 +35,16 @@ export default function MessageBubble({ message, isOwnMessage, onEdit, onDelete 
 
   return (
     <article className={`message-row ${isOwnMessage ? "own" : ""}`}>
+      {!isOwnMessage ? (
+        <div className="message-avatar">
+          <UserAvatar
+            name={message.sender?.username || "Unknown user"}
+            avatarUrl={message.sender?.avatar_url}
+            size="sm"
+          />
+        </div>
+      ) : null}
+
       <div className={bubbleClassName}>
         <div className="message-meta">
           <strong>{message.sender?.username || "Unknown user"}</strong>
@@ -110,6 +122,16 @@ export default function MessageBubble({ message, isOwnMessage, onEdit, onDelete 
           </>
         )}
       </div>
+
+      {isOwnMessage ? (
+        <div className="message-avatar">
+          <UserAvatar
+            name={message.sender?.username || "Unknown user"}
+            avatarUrl={message.sender?.avatar_url}
+            size="sm"
+          />
+        </div>
+      ) : null}
     </article>
   );
 }

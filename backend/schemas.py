@@ -34,6 +34,11 @@ class UserOut(ORMBaseModel):
     avatar_url: str | None = None
     is_approved: bool
     is_admin: bool
+    email_notifications_enabled: bool = True
+    digest_min_unread_count: int = 1
+    last_read_message_id: int | None = None
+    last_active_at: datetime | None = None
+    last_digest_sent_at: datetime | None = None
     created_at: datetime
 
 
@@ -77,3 +82,34 @@ class MessageCreate(BaseModel):
 
 class MessageUpdate(BaseModel):
     content: str = Field(..., min_length=1, max_length=4000)
+
+
+class MessageReadUpdate(BaseModel):
+    last_read_message_id: int = Field(..., ge=0)
+
+
+class MessageSummary(BaseModel):
+    last_read_message_id: int | None = None
+    last_message_id: int | None = None
+    unread_count: int = 0
+
+
+class NotificationPreferencesOut(BaseModel):
+    email_notifications_enabled: bool = True
+    digest_min_unread_count: int = 1
+    last_active_at: datetime | None = None
+    last_digest_sent_at: datetime | None = None
+
+
+class NotificationPreferencesUpdate(BaseModel):
+    email_notifications_enabled: bool
+    digest_min_unread_count: int = Field(..., ge=1, le=999)
+
+
+class DigestPreview(BaseModel):
+    email_notifications_enabled: bool = True
+    digest_min_unread_count: int = 1
+    unread_count: int = 0
+    hours_since_last_active: float | None = None
+    last_digest_sent_at: datetime | None = None
+    should_send_digest: bool = False

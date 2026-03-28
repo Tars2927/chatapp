@@ -1,83 +1,40 @@
-import os
-import shutil
 from datetime import datetime, timezone
-from pathlib import Path
-from uuid import uuid4
-
-from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from app_paths import get_uploads_dir, is_desktop_mode
 from auth import get_current_user
 from database import get_db
+from digest_service import get_unread_count, touch_user_activity
 from models import Message, User
 from routers.ws import manager, serialize_message
-from schemas import MessageOut, MessageUpdate
+from schemas import MessageOut, MessageReadUpdate, MessageSummary, MessageUpdate
 from security import enforce_rate_limit, validate_upload
-
-
-load_dotenv()
+from upload_service import upload_file_to_storage
 
 router = APIRouter(tags=["messages"])
 
+def get_last_message_id(db: Session) -> int | None:
+    return db.query(func.max(Message.id)).filter(Message.is_deleted.is_(False)).scalar()
 
-def configure_cloudinary():
-    try:
-        import cloudinary
-        import cloudinary.uploader as cloudinary_uploader
-    except ModuleNotFoundError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Cloudinary is not installed on the backend environment.",
-        ) from exc
 
-    cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME")
-    api_key = os.getenv("CLOUDINARY_API_KEY")
-    api_secret = os.getenv("CLOUDINARY_API_SECRET")
-
-    if not cloud_name or not api_key or not api_secret:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Cloudinary environment variables are not configured.",
-        )
-
-    cloudinary.config(
-        cloud_name=cloud_name,
-        api_key=api_key,
-        api_secret=api_secret,
-        secure=True,
+def build_message_summary(db: Session, user: User) -> MessageSummary:
+    return MessageSummary(
+        last_read_message_id=user.last_read_message_id,
+        last_message_id=get_last_message_id(db),
+        unread_count=get_unread_count(db, user),
     )
-
-    return cloudinary_uploader
-
-
-def save_local_upload(file: UploadFile) -> dict:
-    uploads_dir = get_uploads_dir()
-    extension = Path(file.filename or "").suffix.lower()
-    filename = f"{uuid4().hex}{extension}"
-    destination = uploads_dir / filename
-
-    with destination.open("wb") as output:
-        shutil.copyfileobj(file.file, output)
-
-    content_type = file.content_type or ""
-    file_type = "image" if content_type.startswith("image/") else "file"
-
-    return {
-        "file_url": f"/uploads/{filename}",
-        "file_type": file_type,
-        "original_filename": file.filename,
-    }
 
 
 @router.get("/messages", response_model=list[MessageOut])
 def list_messages(
     request: Request,
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     enforce_rate_limit(request, scope="messages_list", limit=120, window_seconds=60)
+    touch_user_activity(current_user, db)
+    db.commit()
     return (
         db.query(Message)
         .options(joinedload(Message.sender))
@@ -86,6 +43,49 @@ def list_messages(
         .limit(50)
         .all()[::-1]
     )
+
+
+@router.get("/messages/summary", response_model=MessageSummary)
+def get_message_summary(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    enforce_rate_limit(request, scope="messages_summary", limit=180, window_seconds=60)
+    touch_user_activity(current_user, db)
+    db.commit()
+    db.refresh(current_user)
+    return build_message_summary(db, current_user)
+
+
+@router.patch("/messages/read", response_model=MessageSummary)
+def mark_messages_read(
+    payload: MessageReadUpdate,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    enforce_rate_limit(request, scope="messages_read", limit=180, window_seconds=60)
+    requested_id = payload.last_read_message_id
+    latest_message_id = get_last_message_id(db)
+
+    if latest_message_id is None or requested_id <= 0:
+        current_user.last_read_message_id = None
+        touch_user_activity(current_user, db)
+        db.commit()
+        db.refresh(current_user)
+        return build_message_summary(db, current_user)
+
+    if requested_id > latest_message_id:
+        requested_id = latest_message_id
+
+    if current_user.last_read_message_id is None or requested_id > current_user.last_read_message_id:
+        current_user.last_read_message_id = requested_id
+
+    touch_user_activity(current_user, db)
+    db.commit()
+    db.refresh(current_user)
+    return build_message_summary(db, current_user)
 
 
 @router.patch("/messages/{message_id}", response_model=MessageOut)
@@ -109,6 +109,7 @@ async def update_message(
 
     message.content = payload.content.strip()
     message.updated_at = datetime.now(timezone.utc)
+    touch_user_activity(current_user, db)
     db.commit()
     db.refresh(message)
 
@@ -142,6 +143,7 @@ async def delete_message(
 
     message.is_deleted = True
     message.updated_at = datetime.now(timezone.utc)
+    touch_user_activity(current_user, db)
     db.commit()
 
     await manager.broadcast({"type": "message_deleted", "message_id": message_id})
@@ -152,45 +154,12 @@ async def delete_message(
 def upload_attachment(
     request: Request,
     file: UploadFile = File(...),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     enforce_rate_limit(request, scope="upload", limit=20, window_seconds=600)
     validate_upload(file)
-
-    try:
-        if is_desktop_mode():
-            return save_local_upload(file)
-
-        cloudinary_uploader = configure_cloudinary()
-        result = cloudinary_uploader.upload(
-            file.file,
-            resource_type="auto",
-            folder="baithak",
-            use_filename=True,
-            unique_filename=True,
-        )
-
-        secure_url = result.get("secure_url")
-        if not secure_url:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Upload did not return a file URL.",
-            )
-
-        content_type = file.content_type or ""
-        file_type = "image" if content_type.startswith("image/") else "file"
-
-        return {
-            "file_url": secure_url,
-            "file_type": file_type,
-            "original_filename": file.filename,
-        }
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Upload failed: {exc}",
-        ) from exc
-    finally:
-        file.file.close()
+    result = upload_file_to_storage(file)
+    touch_user_activity(current_user, db)
+    db.commit()
+    return result

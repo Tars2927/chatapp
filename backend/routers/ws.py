@@ -59,6 +59,19 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+def touch_user_activity(user_id: int) -> None:
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+        if user is None:
+            return
+        user.last_active_at = datetime.now(timezone.utc)
+        db.add(user)
+        db.commit()
+    finally:
+        db.close()
+
+
 def validate_message_payload(payload: dict) -> MessageCreate:
     if hasattr(MessageCreate, "model_validate"):
         return MessageCreate.model_validate(payload)
@@ -91,6 +104,12 @@ def persist_message(user_id: int, payload: dict) -> dict:
             file_type=incoming.file_type,
         )
         db.add(message)
+
+        user = db.query(User).filter(User.id == user_id).first()
+        if user is not None:
+            user.last_active_at = datetime.now(timezone.utc)
+            db.add(user)
+
         db.commit()
         db.refresh(message)
 
@@ -140,6 +159,10 @@ def authenticate_websocket(user_id: int, token: str | None) -> User:
                 code=status.WS_1008_POLICY_VIOLATION,
                 reason="Your account is pending approval.",
             )
+        user.last_active_at = datetime.now(timezone.utc)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
         return user
     finally:
         db.close()
@@ -172,6 +195,10 @@ def update_existing_message(user_id: int, payload: dict) -> dict:
 
         message.content = next_content
         message.updated_at = datetime.now(timezone.utc)
+        user = db.query(User).filter(User.id == user_id).first()
+        if user is not None:
+            user.last_active_at = datetime.now(timezone.utc)
+            db.add(user)
         db.commit()
         db.refresh(message)
 
@@ -206,6 +233,10 @@ def delete_existing_message(user_id: int, payload: dict) -> int:
 
         message.is_deleted = True
         message.updated_at = datetime.now(timezone.utc)
+        user = db.query(User).filter(User.id == user_id).first()
+        if user is not None:
+            user.last_active_at = datetime.now(timezone.utc)
+            db.add(user)
         db.commit()
         return message.id
     finally:
@@ -232,6 +263,7 @@ async def websocket_chat(websocket: WebSocket, user_id: int):
             enforce_rate_limit(websocket, scope="ws_events", limit=120, window_seconds=60, subject=str(user.id))
 
             if event_type == "typing":
+                touch_user_activity(user.id)
                 await manager.broadcast(
                     {
                         "type": "typing",

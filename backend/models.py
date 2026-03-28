@@ -14,6 +14,11 @@ class User(Base):
     avatar_url = Column(Text, nullable=True)
     is_approved = Column(Boolean, nullable=False, default=False, server_default=text("false"))
     is_admin = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    email_notifications_enabled = Column(Boolean, nullable=False, default=True, server_default=text("true"))
+    digest_min_unread_count = Column(Integer, nullable=False, default=1, server_default=text("1"))
+    last_read_message_id = Column(Integer, nullable=True)
+    last_active_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    last_digest_sent_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     messages = relationship("Message", back_populates="sender", cascade="all, delete-orphan")

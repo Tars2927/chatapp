@@ -21,6 +21,7 @@ The project currently includes:
 - SQLite fallback for local desktop builds
 - `python-jose` for JWT handling
 - `passlib` for password hashing
+- Resend for digest email delivery
 
 ### Frontend
 
@@ -281,6 +282,9 @@ Then deploy. The frontend already derives both HTTP and WebSocket connections fr
 
 - `POST /register`
 - `POST /login`
+- `GET /me/notifications`
+- `PATCH /me/notifications`
+- `GET /me/digest-preview`
 
 ### Messages
 
@@ -303,6 +307,41 @@ Then deploy. The frontend already derives both HTTP and WebSocket connections fr
 - The frontend build currently succeeds on this repo.
 - Hosted deployments still support the existing Render + Vercel split.
 - The Windows packaging script expects `backend\venv\Scripts\python.exe` to exist.
+
+## Digest Emails
+
+Baithak now includes the groundwork and sender script for 24-hour unread digest emails.
+
+Set these backend environment variables before sending:
+
+```env
+RESEND_API_KEY=re_xxxxxxxxx
+RESEND_FROM_EMAIL=Baithak <notifications@yourdomain.com>
+RESEND_REPLY_TO_EMAIL=support@yourdomain.com
+BAITHAK_CHAT_URL=https://your-frontend-url.example.com/chat
+```
+
+Install backend dependencies, including `resend`, then run a dry run:
+
+```powershell
+cd backend
+$env:DIGEST_DRY_RUN="true"
+python send_digest_emails.py
+```
+
+When you are ready to actually send emails:
+
+```powershell
+cd backend
+$env:DIGEST_DRY_RUN="false"
+python send_digest_emails.py
+```
+
+Recommended production scheduling:
+
+1. Keep the backend web service running as usual.
+2. Run `python send_digest_emails.py` from a scheduled job every hour.
+3. Let the script decide who is eligible based on unread count, 24-hour inactivity, and digest cooldown.
 
 - ## MADE BY TARS!
 

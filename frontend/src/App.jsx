@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+import { Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -76,6 +76,7 @@ function V1Notice({ onClose }) {
 }
 
 export default function App() {
+  const location = useLocation();
   const initialTheme = useMemo(() => {
     const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
     return storedTheme === "dark" ? "dark" : "light";
@@ -97,9 +98,11 @@ export default function App() {
     setShowNotice(false);
   }
 
+  const showFloatingThemeToggle = location.pathname !== "/chat";
+
   return (
     <>
-      <ThemeToggle theme={theme} onToggle={toggleTheme} />
+      {showFloatingThemeToggle ? <ThemeToggle theme={theme} onToggle={toggleTheme} /> : null}
       {showNotice ? <V1Notice onClose={dismissNotice} /> : null}
 
       <Routes>
@@ -121,7 +124,7 @@ export default function App() {
           }
         />
         <Route element={<ProtectedRoute />}>
-          <Route path="/chat" element={<Chat />} />
+          <Route path="/chat" element={<Chat theme={theme} onToggleTheme={toggleTheme} />} />
           <Route element={<AdminRoute />}>
             <Route path="/admin" element={<Admin />} />
           </Route>
