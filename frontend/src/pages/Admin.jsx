@@ -113,7 +113,7 @@ export default function Admin() {
           </div>
         ) : (
           <div className="chat-status-card">
-            <p className="chat-copy">No pending users right now.</p>
+            <p className="chat-copy">No verified pending users right now.</p>
           </div>
         )}
       </section>

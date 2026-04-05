@@ -331,6 +331,38 @@ body.chat-page-active #root {
   border: 1px solid rgba(31, 97, 54, 0.08);
 }
 
+.login-verification-panel {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1rem 1.05rem;
+  border-radius: 1.4rem;
+  background: rgba(255, 250, 244, 0.9);
+  border: 1px solid rgba(149, 74, 0, 0.12);
+}
+
+.login-help-copy {
+  margin: 0;
+  color: rgba(28, 27, 31, 0.72);
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+.login-inline-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.login-inline-actions .login-submit-premium,
+.login-inline-actions .login-secondary-button {
+  margin-top: 0;
+  width: 100%;
+}
+
+.login-secondary-button {
+  min-height: 3.4rem;
+}
+
 .login-register-link {
   margin: 0;
   color: rgba(28, 27, 31, 0.72);
@@ -2182,6 +2214,15 @@ html[data-theme="dark"] .login-status-error {
 html[data-theme="dark"] .login-status-success {
   background: rgba(27, 73, 43, 0.82);
   color: #dff6e4;
+}
+
+html[data-theme="dark"] .login-verification-panel {
+  background: rgba(30, 33, 41, 0.9);
+  border-color: rgba(255, 183, 132, 0.12);
+}
+
+html[data-theme="dark"] .login-help-copy {
+  color: rgba(247, 240, 232, 0.72);
 }
 
 html[data-theme="dark"] a {

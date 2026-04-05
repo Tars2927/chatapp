@@ -17,7 +17,7 @@ def list_pending_users(
 ):
     return (
         db.query(User)
-        .filter(User.is_approved.is_(False))
+        .filter(User.is_approved.is_(False), User.email_verified.is_(True))
         .order_by(User.created_at.asc())
         .all()
     )
@@ -34,6 +34,12 @@ def approve_user(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found.",
+        )
+
+    if not user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Users must verify their email before they can be approved.",
         )
 
     user.is_approved = True

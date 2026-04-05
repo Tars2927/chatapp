@@ -6,7 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -38,16 +38,55 @@ def ensure_user_access_columns() -> None:
     admin_email = os.getenv("ADMIN_EMAIL", "").strip().lower()
 
     with engine.begin() as connection:
-        connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT"))
-        connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_approved BOOLEAN"))
-        connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN"))
-        connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications_enabled BOOLEAN"))
-        connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS digest_min_unread_count INTEGER"))
-        connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_read_message_id INTEGER"))
-        connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ"))
-        connection.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_digest_sent_at TIMESTAMPTZ"))
-        connection.execute(text("ALTER TABLE messages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ"))
-        connection.execute(text("ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN"))
+        user_columns = {column["name"] for column in inspect(connection).get_columns("users")}
+        message_columns = {column["name"] for column in inspect(connection).get_columns("messages")}
+
+        def add_column_if_missing(table_name: str, column_name: str, definition: str, existing: set[str]) -> None:
+            if column_name in existing:
+                return
+            connection.execute(text(f"ALTER TABLE {table_name} ADD COLUMN {definition}"))
+            existing.add(column_name)
+
+        add_column_if_missing("users", "avatar_url", "avatar_url TEXT", user_columns)
+        add_column_if_missing("users", "email_verified", "email_verified BOOLEAN", user_columns)
+        add_column_if_missing(
+            "users",
+            "email_verification_otp_hash",
+            "email_verification_otp_hash TEXT",
+            user_columns,
+        )
+        add_column_if_missing(
+            "users",
+            "email_verification_expires_at",
+            "email_verification_expires_at TIMESTAMPTZ",
+            user_columns,
+        )
+        add_column_if_missing(
+            "users",
+            "email_verification_sent_at",
+            "email_verification_sent_at TIMESTAMPTZ",
+            user_columns,
+        )
+        add_column_if_missing("users", "is_approved", "is_approved BOOLEAN", user_columns)
+        add_column_if_missing("users", "is_admin", "is_admin BOOLEAN", user_columns)
+        add_column_if_missing(
+            "users",
+            "email_notifications_enabled",
+            "email_notifications_enabled BOOLEAN",
+            user_columns,
+        )
+        add_column_if_missing(
+            "users",
+            "digest_min_unread_count",
+            "digest_min_unread_count INTEGER",
+            user_columns,
+        )
+        add_column_if_missing("users", "last_read_message_id", "last_read_message_id INTEGER", user_columns)
+        add_column_if_missing("users", "last_active_at", "last_active_at TIMESTAMPTZ", user_columns)
+        add_column_if_missing("users", "last_digest_sent_at", "last_digest_sent_at TIMESTAMPTZ", user_columns)
+        add_column_if_missing("messages", "updated_at", "updated_at TIMESTAMPTZ", message_columns)
+        add_column_if_missing("messages", "is_deleted", "is_deleted BOOLEAN", message_columns)
+        connection.execute(text("UPDATE users SET email_verified = TRUE WHERE email_verified IS NULL"))
         connection.execute(text("UPDATE users SET is_approved = TRUE WHERE is_approved IS NULL"))
         connection.execute(text("UPDATE users SET is_admin = FALSE WHERE is_admin IS NULL"))
         connection.execute(text("UPDATE users SET email_notifications_enabled = TRUE WHERE email_notifications_enabled IS NULL"))

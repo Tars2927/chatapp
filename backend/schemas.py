@@ -32,6 +32,7 @@ class UserOut(ORMBaseModel):
     username: str
     email: str
     avatar_url: str | None = None
+    email_verified: bool
     is_approved: bool
     is_admin: bool
     email_notifications_enabled: bool = True
@@ -46,6 +47,7 @@ class PendingUserOut(ORMBaseModel):
     id: int
     username: str
     email: str
+    email_verified: bool
     is_approved: bool
     created_at: datetime
 
@@ -60,6 +62,27 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+
+
+class RegistrationStatus(BaseModel):
+    email: str
+    requires_verification: bool = False
+    pending_approval: bool = True
+
+
+class EmailVerificationRequest(BaseModel):
+    email: str = Field(..., min_length=5, max_length=100)
+    otp: str = Field(..., min_length=6, max_length=6)
+
+
+class EmailVerificationResendRequest(BaseModel):
+    email: str = Field(..., min_length=5, max_length=100)
+
+
+class EmailVerificationStatus(BaseModel):
+    email: str
+    email_verified: bool = False
+    pending_approval: bool = True
 
 
 class MessageOut(ORMBaseModel):

@@ -16,6 +16,14 @@ export default function Register() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  function getErrorMessage(requestError, fallbackMessage) {
+    const detail = requestError.response?.data?.detail;
+    if (typeof detail === "string") {
+      return detail;
+    }
+    return detail?.message || fallbackMessage;
+  }
+
   function handleChange(event) {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
@@ -27,20 +35,18 @@ export default function Register() {
     setIsSubmitting(true);
 
     try {
-      await api.post("/register", formData);
+      const response = await api.post("/register", formData);
       navigate("/login", {
         replace: true,
         state: {
           registered: true,
-          pendingApproval: true,
-          email: formData.email.trim().toLowerCase(),
+          pendingApproval: response.data.pending_approval,
+          verificationRequired: response.data.requires_verification,
+          email: response.data.email || formData.email.trim().toLowerCase(),
         },
       });
     } catch (requestError) {
-      setError(
-        requestError.response?.data?.detail ||
-          "Registration failed. Please review the form and try again.",
-      );
+      setError(getErrorMessage(requestError, "Registration failed. Please review the form and try again."));
     } finally {
       setIsSubmitting(false);
     }
@@ -49,7 +55,7 @@ export default function Register() {
   return (
     <AuthCard
       title="Create account"
-      subtitle="Register first, then wait for approval before entering Baithak."
+      subtitle="Register first, verify your email, then wait for approval before entering Baithak."
       form={
         <form className="auth-form" onSubmit={handleSubmit}>
           <label>
@@ -95,7 +101,7 @@ export default function Register() {
 
           {error ? <p className="form-error">{error}</p> : null}
           <p className="form-success muted">
-            New accounts stay pending until an admin approves them.
+            New accounts must verify their email by OTP before they can be approved.
           </p>
 
           <button type="submit" className="primary-button" disabled={isSubmitting}>
