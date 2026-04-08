@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -91,6 +92,9 @@ class MessageOut(ORMBaseModel):
     content: str | None = None
     file_url: str | None = None
     file_type: str | None = None
+    is_toxic: bool = False
+    toxic_labels: dict[str, Any] | None = None
+    toxicity_confidence: float | None = None
     created_at: datetime
     updated_at: datetime | None = None
     is_deleted: bool = False

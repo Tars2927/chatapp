@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from auth import get_current_user
 from database import get_db
 from digest_service import get_unread_count, touch_user_activity
+from moderation import apply_message_moderation
 from models import Message, User
 from routers.ws import manager, serialize_message
 from schemas import MessageOut, MessageReadUpdate, MessageSummary, MessageUpdate
@@ -108,6 +109,7 @@ async def update_message(
         )
 
     message.content = payload.content.strip()
+    apply_message_moderation(message, message.content)
     message.updated_at = datetime.now(timezone.utc)
     touch_user_activity(current_user, db)
     db.commit()

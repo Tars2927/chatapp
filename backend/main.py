@@ -13,6 +13,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from app_paths import get_frontend_dist_dir, get_uploads_dir
 from auth import SECRET_KEY
 from database import Base, engine
+from moderation import get_moderation_service
 from routers.admin_router import router as admin_router
 from routers.auth_router import router as auth_router
 from routers.messages import router as messages_router
@@ -84,6 +85,14 @@ def ensure_user_access_columns() -> None:
         add_column_if_missing("users", "last_read_message_id", "last_read_message_id INTEGER", user_columns)
         add_column_if_missing("users", "last_active_at", "last_active_at TIMESTAMPTZ", user_columns)
         add_column_if_missing("users", "last_digest_sent_at", "last_digest_sent_at TIMESTAMPTZ", user_columns)
+        add_column_if_missing("messages", "is_toxic", "is_toxic BOOLEAN", message_columns)
+        add_column_if_missing("messages", "toxic_labels", "toxic_labels JSON", message_columns)
+        add_column_if_missing(
+            "messages",
+            "toxicity_confidence",
+            "toxicity_confidence DOUBLE PRECISION",
+            message_columns,
+        )
         add_column_if_missing("messages", "updated_at", "updated_at TIMESTAMPTZ", message_columns)
         add_column_if_missing("messages", "is_deleted", "is_deleted BOOLEAN", message_columns)
         connection.execute(text("UPDATE users SET email_verified = TRUE WHERE email_verified IS NULL"))
@@ -92,6 +101,7 @@ def ensure_user_access_columns() -> None:
         connection.execute(text("UPDATE users SET email_notifications_enabled = TRUE WHERE email_notifications_enabled IS NULL"))
         connection.execute(text("UPDATE users SET digest_min_unread_count = 1 WHERE digest_min_unread_count IS NULL OR digest_min_unread_count < 1"))
         connection.execute(text("UPDATE users SET last_active_at = COALESCE(last_active_at, created_at, CURRENT_TIMESTAMP)"))
+        connection.execute(text("UPDATE messages SET is_toxic = FALSE WHERE is_toxic IS NULL"))
         connection.execute(text("UPDATE messages SET is_deleted = FALSE WHERE is_deleted IS NULL"))
         if admin_email:
             connection.execute(
@@ -154,7 +164,10 @@ if uploads_dir.exists():
 
 @app.get("/health")
 def health_check():
-    return {"message": "Baithak Backend is running."}
+    return {
+        "message": "Baithak Backend is running.",
+        "moderation": get_moderation_service().health_payload(),
+    }
 
 
 @app.get("/{full_path:path}")

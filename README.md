@@ -9,6 +9,7 @@ The project currently includes:
 - a React frontend with register/login pages
 - protected frontend routing for the chat area
 - a realtime group chat experience with admin approval and uploads
+- built-in toxic message flagging with explainable trigger words
 - a Windows desktop packaging path that can produce a downloadable `.exe`
 
 ## Tech Stack
@@ -83,6 +84,7 @@ chatapp/
 - File uploads
 - Edit and delete for a user's own messages
 - Emoji support in the composer
+- In-app moderation labels and flagged-message badges
 - Frontend served directly by FastAPI for desktop packaging
 
 ## Backend Setup
@@ -110,6 +112,9 @@ DATABASE_URL=postgresql://USERNAME:PASSWORD@HOST/DATABASE?sslmode=require
 SECRET_KEY=replace-with-a-long-random-secret
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=10080
+MODERATION_ENABLED=true
+TOXICITY_THRESHOLD=0.5
+MODERATION_EXPLANATION_LIMIT=5
 ```
 
 If `DATABASE_URL` is omitted for local desktop use, the backend now falls back to a local SQLite database in `desktop_data/baithak.db` during development, or `%APPDATA%\Baithak\baithak.db` in the packaged `.exe`.
@@ -239,6 +244,8 @@ CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
 ADMIN_EMAIL=your-admin-email
 APP_ENV=production
+MODERATION_ENABLED=true
+TOXICITY_THRESHOLD=0.5
 CORS_ALLOWED_ORIGINS=https://your-vercel-project.vercel.app
 ALLOWED_HOSTS=your-render-backend.onrender.com
 TRUST_PROXY=true
@@ -292,6 +299,14 @@ Then deploy. The frontend already derives both HTTP and WebSocket connections fr
 - `PATCH /messages/{id}`
 - `DELETE /messages/{id}`
 - `POST /upload`
+
+Each message payload can also include moderation metadata:
+
+- `is_toxic`
+- `toxicity_confidence`
+- `toxic_labels.labels`
+- `toxic_labels.flagged_categories`
+- `toxic_labels.explanation.top_words`
 
 ### Admin
 

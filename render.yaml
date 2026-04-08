@@ -10,5 +10,9 @@ services:
     envVars:
       - key: APP_ENV
         value: production
+      - key: MODERATION_ENABLED
+        value: true
+      - key: TOXICITY_THRESHOLD
+        value: 0.5
       - key: TRUST_PROXY
         value: true

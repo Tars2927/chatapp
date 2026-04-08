@@ -8,6 +8,7 @@ from sqlalchemy.orm import joinedload
 
 from auth import decode_access_token
 from database import SessionLocal
+from moderation import apply_message_moderation
 from models import Message, User
 from schemas import MessageCreate, MessageOut
 from security import enforce_rate_limit
@@ -103,6 +104,7 @@ def persist_message(user_id: int, payload: dict) -> dict:
             file_url=incoming.file_url,
             file_type=incoming.file_type,
         )
+        apply_message_moderation(message, content)
         db.add(message)
 
         user = db.query(User).filter(User.id == user_id).first()
@@ -194,6 +196,7 @@ def update_existing_message(user_id: int, payload: dict) -> dict:
             )
 
         message.content = next_content
+        apply_message_moderation(message, next_content)
         message.updated_at = datetime.now(timezone.utc)
         user = db.query(User).filter(User.id == user_id).first()
         if user is not None:

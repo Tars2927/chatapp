@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, func, text
+from sqlalchemy import JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text, func, text
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -36,6 +36,9 @@ class Message(Base):
     content = Column(Text, nullable=True)
     file_url = Column(Text, nullable=True)
     file_type = Column(String(20), nullable=True)
+    is_toxic = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    toxic_labels = Column(JSON, nullable=True)
+    toxicity_confidence = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), nullable=True, onupdate=func.now())
     is_deleted = Column(Boolean, nullable=False, default=False, server_default=text("false"))

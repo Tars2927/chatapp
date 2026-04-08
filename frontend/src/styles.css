@@ -1337,6 +1337,13 @@ body.chat-page-active #root {
   color: #ffffff;
 }
 
+.message-meta-primary {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
 .message-meta {
   display: flex;
   justify-content: space-between;
@@ -1344,6 +1351,45 @@ body.chat-page-active #root {
   margin-bottom: 0.6rem;
   color: #574335;
   font-size: 0.9rem;
+}
+
+.message-toxicity-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.75rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(180, 63, 45, 0.14);
+  color: #9a2d1f;
+  border: 1px solid rgba(180, 63, 45, 0.16);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.message-toxicity-summary,
+.message-toxicity-explainer {
+  margin: 0 0 0.55rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: rgba(154, 45, 31, 0.92);
+}
+
+.message-toxicity-explainer {
+  color: rgba(87, 67, 53, 0.82);
+}
+
+.message-bubble.own .message-toxicity-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff8f1;
+  border-color: rgba(255, 255, 255, 0.26);
+}
+
+.message-bubble.own .message-toxicity-summary,
+.message-bubble.own .message-toxicity-explainer {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .message-content {
@@ -2473,6 +2519,28 @@ html[data-theme="dark"] .message-bubble.own .message-content,
 html[data-theme="dark"] .message-bubble.own .message-file,
 html[data-theme="dark"] .message-bubble.own .message-action-button {
   color: #ffffff;
+}
+
+html[data-theme="dark"] .message-toxicity-badge {
+  background: rgba(230, 102, 79, 0.16);
+  color: #ffd9cf;
+  border-color: rgba(230, 102, 79, 0.2);
+}
+
+html[data-theme="dark"] .message-toxicity-summary,
+html[data-theme="dark"] .message-toxicity-explainer {
+  color: rgba(245, 239, 245, 0.78);
+}
+
+html[data-theme="dark"] .message-bubble.own .message-toxicity-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff6ef;
+  border-color: rgba(255, 255, 255, 0.24);
+}
+
+html[data-theme="dark"] .message-bubble.own .message-toxicity-summary,
+html[data-theme="dark"] .message-bubble.own .message-toxicity-explainer {
+  color: rgba(255, 255, 255, 0.88);
 }
 
 html[data-theme="dark"] .auth-form input,

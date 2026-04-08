@@ -15,10 +15,42 @@ function formatTimestamp(value) {
   }).format(date);
 }
 
+function formatCategoryLabel(label) {
+  return label.replace(/_/g, " ");
+}
+
+function readModeration(message) {
+  const moderation =
+    message?.toxic_labels && typeof message.toxic_labels === "object"
+      ? message.toxic_labels
+      : null;
+  const labels =
+    moderation?.labels && typeof moderation.labels === "object" ? moderation.labels : {};
+  const fallbackFlaggedCategories = Object.entries(labels)
+    .filter(([, score]) => Number(score) >= 0.5)
+    .map(([label]) => label);
+
+  return {
+    flaggedCategories:
+      Array.isArray(moderation?.flagged_categories) && moderation.flagged_categories.length
+        ? moderation.flagged_categories
+        : fallbackFlaggedCategories,
+    topWords: Array.isArray(moderation?.explanation?.top_words)
+      ? moderation.explanation.top_words
+      : [],
+  };
+}
+
 export default function MessageBubble({ message, isOwnMessage, onEdit, onDelete }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(message.content || "");
   const isImageMessage = message.file_type === "image" && Boolean(message.file_url);
+  const moderation = readModeration(message);
+  const isFlagged = Boolean(message.is_toxic || moderation.flaggedCategories.length);
+  const confidencePercent =
+    typeof message.toxicity_confidence === "number"
+      ? Math.round(message.toxicity_confidence * 100)
+      : null;
   const bubbleClassName = `message-bubble ${isOwnMessage ? "own" : ""} ${isImageMessage ? "media" : ""}`;
 
   function handleSave() {
@@ -47,7 +79,10 @@ export default function MessageBubble({ message, isOwnMessage, onEdit, onDelete 
 
       <div className={bubbleClassName}>
         <div className="message-meta">
-          <strong>{message.sender?.username || "Unknown user"}</strong>
+          <div className="message-meta-primary">
+            <strong>{message.sender?.username || "Unknown user"}</strong>
+            {isFlagged ? <span className="message-toxicity-badge">⚠ Flagged</span> : null}
+          </div>
           <span>{formatTimestamp(message.updated_at || message.created_at)}</span>
         </div>
 
@@ -74,6 +109,19 @@ export default function MessageBubble({ message, isOwnMessage, onEdit, onDelete 
           </div>
         ) : (
           <>
+            {isFlagged && moderation.flaggedCategories.length ? (
+              <p className="message-toxicity-summary">
+                {moderation.flaggedCategories.map(formatCategoryLabel).join(", ")}
+                {confidencePercent !== null ? ` · ${confidencePercent}% confidence` : ""}
+              </p>
+            ) : null}
+
+            {isFlagged && moderation.topWords.length ? (
+              <p className="message-toxicity-explainer">
+                Signals: {moderation.topWords.map((entry) => entry.word).join(", ")}
+              </p>
+            ) : null}
+
             {message.content ? <p className="message-content">{message.content}</p> : null}
 
             {message.file_url ? (
